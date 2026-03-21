@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>MY FOTO Inbox</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans Thai',sans-serif;background:#faf5f8;min-height:100vh;max-width:480px;margin:0 auto}
+.hdr{background:#e07aa0;padding:14px 16px;color:white;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+.hdr-icon{font-size:22px}
+.hdr-title{font-size:16px;font-weight:600}
+.hdr-sub{font-size:11px;opacity:.85}
+.badge{background:white;color:#e07aa0;border-radius:20px;padding:2px 10px;font-size:13px;font-weight:700;margin-left:auto;min-width:28px;text-align:center}
+.rbtn{background:rgba(255,255,255,.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:6px}
+.inbox{padding:12px;display:flex;flex-direction:column;gap:10px;padding-bottom:30px}
+.card{background:white;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(224,122,160,0.1);border:1px solid #f5e0ea}
+.card-top{padding:12px 14px 0}
+.meta{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.av{width:32px;height:32px;border-radius:50%;background:#fde8f1;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.meta-name{font-size:13px;font-weight:600;color:#333}
+.meta-time{font-size:11px;color:#bbb;margin-left:auto}
+.cmsg{background:#f5f5f5;border-radius:10px;padding:10px 12px;font-size:13.5px;color:#444;line-height:1.65;margin-bottom:10px}
+.dlbl{font-size:11px;font-weight:600;color:#e07aa0;margin-bottom:6px;display:flex;align-items:center;gap:4px}
+.dtxt{font-size:13.5px;color:#333;line-height:1.7;border:1.5px dashed #f4a7c3;border-radius:10px;padding:10px 12px;background:#fff8fb;margin-bottom:0;width:100%;min-height:90px;resize:none;font-family:inherit;border-bottom-left-radius:0;border-bottom-right-radius:0;outline:none}
+.dtxt:focus{border-color:#e07aa0}
+.brow{display:flex}
+.btn{padding:12px 0;border:none;font-size:13.5px;font-weight:600;cursor:pointer;flex:1;font-family:inherit;transition:opacity .15s}
+.btn:active{opacity:.75}
+.ok{background:#4caf82;color:white;border-radius:0 0 0 10px}
+.ed{background:#f0e8f4;color:#7a3570;border-radius:0}
+.sk{background:#f0f0f0;color:#aaa;border-radius:0 0 10px 0;flex:.6}
+.empty{text-align:center;padding:70px 20px;color:#c0a8b8;font-size:15px;line-height:2.2}
+.empty-icon{font-size:52px;margin-bottom:8px}
+.ld{text-align:center;padding:50px 20px;color:#d4a0b8;font-size:14px}
+.ld-spin{display:inline-block;width:32px;height:32px;border:3px solid #f4a7c3;border-top-color:#e07aa0;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sent-ov{position:absolute;inset:0;background:rgba(76,175,130,.96);border-radius:16px;display:flex;align-items:center;justify-content:center;color:white;font-size:17px;font-weight:600;flex-direction:column;gap:6px}
+.cw{position:relative}
+.uid-tag{font-size:10px;color:#ddd;padding:4px 14px;border-top:1px solid #fce8f1;background:#fffafc}
+.no-uid{color:#f4a7c3;font-size:11px;background:#fff0f6;padding:6px 14px;border-top:1px solid #fce8f1;display:flex;align-items:center;gap:4px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-icon">📸</div>
+  <div>
+    <div class="hdr-title">MY FOTO Inbox</div>
+    <div class="hdr-sub">หยก · Approve Mode</div>
+  </div>
+  <span class="badge" id="cnt">...</span>
+  <button class="rbtn" onclick="loadInbox()" title="Refresh">↻</button>
+</div>
+
+<div class="inbox" id="box">
+  <div class="ld"><div class="ld-spin"></div><br>กำลังโหลด...</div>
+</div>
+
+<script>
+const API = '/api/inbox';
+let items = [];
+
+async function initLiff() {
+  try {
+    await liff.init({ liffId: '2009555814-EdeZPetj' });
+  } catch(e) {
+    console.log('LIFF init failed, continuing without LIFF:', e);
+  }
+  loadInbox();
+}
+
+async function loadInbox() {
+  document.getElementById('box').innerHTML = '<div class="ld"><div class="ld-spin"></div><br>กำลังโหลด...</div>';
+  try {
+    const r = await fetch(API + '?action=getInbox&t=' + Date.now());
+    items = await r.json();
+    render();
+  } catch(e) {
+    document.getElementById('box').innerHTML = '<div class="ld">เกิดข้อผิดพลาด<br>กด ↻ ลองใหม่</div>';
+  }
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmt(ts) {
+  try {
+    const d = new Date(ts);
+    return d.toLocaleString('th-TH',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'});
+  } catch(e) { return ''; }
+}
+
+function render() {
+  const pending = items.filter(x => !x.done);
+  document.getElementById('cnt').textContent = pending.length;
+  if (!pending.length) {
+    document.getElementById('box').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">🌸</div>
+        ไม่มีข้อความรออยู่ค่า<br>
+        <small style="font-size:12px;color:#dbb0c8">refresh เพื่อดูข้อความใหม่</small>
+      </div>`;
+    return;
+  }
+  document.getElementById('box').innerHTML = pending.map((x, i) => {
+    const idx = items.indexOf(x);
+    const hasUid = x.userId && x.userId.length > 5;
+    return `
+    <div class="cw" id="w${idx}">
+      <div class="card">
+        <div class="card-top">
+          <div class="meta">
+            <div class="av">👤</div>
+            <div>
+              <div class="meta-name">${esc(x.displayName) || 'ลูกค้า'}</div>
+            </div>
+            <div class="meta-time">${fmt(x.timestamp)}</div>
+          </div>
+          <div class="cmsg">${esc(x.userMessage)}</div>
+          <div class="dlbl">✍️ AI ร่างไว้ — แก้ได้เลย</div>
+          <textarea class="dtxt" id="d${idx}" rows="4">${esc(x.aiDraft)}</textarea>
+        </div>
+        ${hasUid
+          ? `<div class="uid-tag">User: ${x.userId.substring(0,16)}...</div>`
+          : `<div class="no-uid">⚠️ ไม่มี UserID — approve ได้แต่ส่ง LINE ไม่ได้</div>`
+        }
+        <div class="brow">
+          <button class="btn ok" onclick="doApprove(${idx})">✅ Approve & ส่ง</button>
+          <button class="btn sk" onclick="doSkip(${idx})">✗ ข้าม</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function doApprove(idx) {
+  const item = items[idx];
+  const msg = document.getElementById('d'+idx).value.trim();
+  if (!msg) return alert('กรุณาใส่ข้อความก่อนนะคะ');
+
+  const w = document.getElementById('w'+idx);
+  w.innerHTML += '<div class="sent-ov"><span style="font-size:32px">✅</span>กำลังส่ง...</div>';
+
+  try {
+    const r = await fetch(`${API}?action=approve&row=${item.row}&userId=${encodeURIComponent(item.userId||'')}&message=${encodeURIComponent(msg)}`);
+    const data = await r.json();
+    items[idx].done = true;
+    w.querySelector('.sent-ov').innerHTML = '<span style="font-size:32px">✅</span>ส่งแล้วค่า!';
+    setTimeout(() => { w.remove(); updateCount(); }, 1500);
+  } catch(e) {
+    items[idx].done = true;
+    w.querySelector('.sent-ov').innerHTML = '<span style="font-size:32px">⚠️</span>เกิดข้อผิดพลาด';
+    setTimeout(() => { w.remove(); updateCount(); }, 2000);
+  }
+}
+
+async function doSkip(idx) {
+  const item = items[idx];
+  items[idx].done = true;
+  document.getElementById('w'+idx)?.remove();
+  updateCount();
+  fetch(`${API}?action=skip&row=${item.row}`).catch(()=>{});
+}
+
+function updateCount() {
+  const n = items.filter(x=>!x.done).length;
+  document.getElementById('cnt').textContent = n;
+  if (!n) {
+    document.getElementById('box').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">🌸</div>
+        ไม่มีข้อความรออยู่ค่า
+      </div>`;
+  }
+}
+
+initLiff();
+setInterval(loadInbox, 60000);
+</script>
+</body>
+</html>
