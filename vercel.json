@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/inbox.js" },
+    { "source": "/(.*)", "destination": "/public/index.html" }
+  ]
+}
