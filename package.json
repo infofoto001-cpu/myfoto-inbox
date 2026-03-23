@@ -1,0 +1,8 @@
+{
+  "name": "myfoto-inbox",
+  "version": "2.0.0",
+  "private": true,
+  "dependencies": {
+    "redis": "^4.6.0"
+  }
+}
