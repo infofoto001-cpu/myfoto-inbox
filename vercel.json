@@ -1,12 +1,12 @@
 {
-  "functions": {
-    "api/inbox.js": {
-      "memory": 256,
-      "maxDuration": 10
-    }
-  },
-  "rewrites": [
-    { "source": "/api/inbox", "destination": "/api/inbox.js" },
-    { "source": "/(.*)", "destination": "/public/index.html" }
+  "version": 2,
+  "builds": [
+    { "src": "api/inbox.js", "use": "@vercel/node" },
+    { "src": "public/**", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/inbox", "dest": "/api/inbox.js" },
+    { "src": "/sw.js", "dest": "/public/sw.js" },
+    { "src": "/(.*)", "dest": "/public/index.html" }
   ]
 }
