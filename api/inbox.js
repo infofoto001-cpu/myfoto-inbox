@@ -1,6 +1,7 @@
 const LINE_TOKEN = "qf72BVH/RuT1PFJJhQ56R6Mtii5Dcl7etMc6dBdV/c/XW8ZCgGXKr1zYJsYIkXL2po5U+Ej/M7WY5UCn/vvmCjmGDhKEnHJiVDOzVcHTPNd93kEhyI3K6uUg0CkdXJdph0ofE1Z6RZOu27FvXWapLAdB04t89/1O/w1cDnyilFU=";
 
-let inbox = [];
+// In-memory storage (resets on cold start - use external DB for production)
+if (!global.inbox) global.inbox = [];
 
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -8,11 +9,14 @@ module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  // Make.com ส่งข้อมูลมา
+  // POST - รับข้อมูลจาก Make.com
   if (req.method === "POST") {
     try {
-      const data = req.body || JSON.parse(await getRawBody(req));
-      inbox.push({
+      let data = req.body;
+      if (typeof data === "string") data = JSON.parse(data);
+      if (!data) return res.status(400).json({ error: "No body" });
+
+      const item = {
         id: Date.now(),
         userId: data.userId || "",
         displayName: data.displayName || "ลูกค้า",
@@ -20,68 +24,63 @@ module.exports = async (req, res) => {
         aiDraft: data.aiDraft || "",
         timestamp: new Date().toISOString(),
         status: "PENDING"
-      });
-      return res.json({ status: "ok", count: inbox.length });
+      };
+      global.inbox.push(item);
+      console.log("Received:", item.userMessage, "Total:", global.inbox.length);
+      return res.json({ status: "ok", id: item.id, count: global.inbox.length });
     } catch (e) {
+      console.error("POST error:", e);
       return res.status(500).json({ error: e.message });
     }
   }
 
+  // GET actions
   const { action, id, message, userId } = req.query;
 
-  // ดึง inbox
   if (action === "getInbox") {
-    return res.json(inbox.filter(x => x.status === "PENDING"));
+    const pending = global.inbox.filter(x => x.status === "PENDING");
+    return res.json(pending);
   }
 
-  // Approve + ส่ง LINE
+  if (action === "getAll") {
+    return res.json(global.inbox);
+  }
+
   if (action === "approve") {
-    const item = inbox.find(x => x.id === parseInt(id));
+    const item = global.inbox.find(x => x.id === parseInt(id));
     if (item) {
       item.status = "SENT";
       item.sentMessage = decodeURIComponent(message || "");
-      if (userId && userId.length > 5) {
+      const uid = decodeURIComponent(userId || "");
+      if (uid && uid.length > 5 && !uid.startsWith("anon")) {
         try {
           const fetch = require("node-fetch");
-          await fetch("https://api.line.me/v2/bot/message/push", {
+          const r = await fetch("https://api.line.me/v2/bot/message/push", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "Authorization": "Bearer " + LINE_TOKEN
             },
             body: JSON.stringify({
-              to: decodeURIComponent(userId),
-              messages: [{ type: "text", text: decodeURIComponent(message) }]
+              to: uid,
+              messages: [{ type: "text", text: decodeURIComponent(message || "") }]
             })
           });
+          const result = await r.json();
+          console.log("LINE send result:", result);
         } catch (e) {
-          console.error("LINE send error:", e);
+          console.error("LINE error:", e);
         }
       }
     }
     return res.json({ status: "sent" });
   }
 
-  // Skip
   if (action === "skip") {
-    const item = inbox.find(x => x.id === parseInt(id));
+    const item = global.inbox.find(x => x.id === parseInt(id));
     if (item) item.status = "SKIPPED";
     return res.json({ status: "skipped" });
   }
 
-  // History ทั้งหมด
-  if (action === "getAll") {
-    return res.json(inbox);
-  }
-
   return res.status(400).json({ error: "Unknown action" });
 };
-
-async function getRawBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = "";
-    req.on("data", chunk => data += chunk);
-    req.on("end", () => resolve(data));
-    req.on("error", reject);
-  });
-}
