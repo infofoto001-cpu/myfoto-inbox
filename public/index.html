@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MY FOTO Inbox</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0f0f14;--sidebar:#16161e;
+    --accent:#ff6b9d;--accent2:#c084fc;--green:#22c55e;
+    --text:#e8e8f0;--text2:#8888aa;
+    --bubble-in:#252535;--bubble-out:#2d1f4e;--border:#2a2a3a;
+  }
+  html,body{height:100%;overflow:hidden;font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text)}
+
+  #view-list,#view-chat{position:fixed;inset:0;display:flex;flex-direction:column;transition:transform .25s ease}
+  #view-chat{transform:translateX(100%)}
+  body.in-chat #view-list{transform:translateX(-100%)}
+  body.in-chat #view-chat{transform:translateX(0)}
+
+  /* LIST */
+  #list-header{padding:14px 16px;background:var(--sidebar);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  #list-header h1{font-size:16px;font-weight:700;color:var(--accent)}
+  #list-header p{font-size:11px;color:var(--text2);margin-top:1px}
+  #header-right{display:flex;align-items:center;gap:10px}
+  #notif-btn{background:var(--bubble-in);border:1px solid var(--border);color:var(--text2);font-size:11px;padding:5px 10px;border-radius:20px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  #notif-btn.granted{color:var(--green);border-color:var(--green)}
+  #status-dot{width:9px;height:9px;border-radius:50%;background:#444;transition:.3s;flex-shrink:0}
+  #status-dot.live{background:var(--green);box-shadow:0 0 7px var(--green)}
+
+  #conv-list{flex:1;overflow-y:auto;padding:8px}
+  .conv-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:background .15s;user-select:none}
+  .conv-item:active{background:#1f1f2e}
+  .conv-avatar{width:50px;height:50px;border-radius:50%;background:var(--bubble-in);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;border:2px solid var(--border)}
+  .conv-avatar img{width:100%;height:100%;object-fit:cover}
+  .conv-info{flex:1;min-width:0}
+  .conv-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .conv-preview{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+  .conv-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+  .conv-time{font-size:10px;color:var(--text2)}
+  .conv-badge{background:var(--accent);color:#fff;font-size:10px;font-weight:700;border-radius:999px;padding:2px 8px}
+  #no-convs{text-align:center;color:var(--text2);font-size:13px;padding:60px 24px;line-height:2}
+  @keyframes newmsg{0%,100%{background:transparent}40%{background:#3d1040}}
+  .conv-item.flash-new{animation:newmsg .8s ease}
+
+  /* CHAT */
+  #chat-header{padding:10px 14px;background:var(--sidebar);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
+  #btn-back{background:none;border:none;color:var(--text);font-size:26px;cursor:pointer;padding:2px 6px;flex-shrink:0;line-height:1}
+  #chat-header .avatar{width:38px;height:38px;border-radius:50%;background:var(--bubble-in);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px}
+  #chat-header .avatar img{width:100%;height:100%;object-fit:cover}
+  #chat-header .info{flex:1;min-width:0}
+  #chat-header .name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #chat-header .uid{font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  #chat-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px}
+  .msg-row{display:flex;max-width:82%}
+  .msg-row.customer{align-self:flex-start}
+  .msg-row.admin{align-self:flex-end;flex-direction:row-reverse}
+  .msg-bubble{padding:10px 14px;border-radius:18px;font-size:14px;line-height:1.55;word-break:break-word;white-space:pre-wrap}
+  .msg-row.customer .msg-bubble{background:var(--bubble-in);border-bottom-left-radius:4px}
+  .msg-row.admin .msg-bubble{background:var(--bubble-out);border-bottom-right-radius:4px;color:#d8b4fe}
+  .msg-time{font-size:10px;color:var(--text2);margin-top:3px}
+  .msg-row.admin .msg-time{text-align:right}
+
+  /* BOTTOM AREA */
+  #bottom-area{border-top:1px solid var(--border);background:var(--sidebar);flex-shrink:0}
+
+  /* draft section */
+  #draft-section{padding:10px 12px;border-bottom:1px solid var(--border)}
+  #draft-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  #draft-label{font-size:11px;color:var(--accent);font-weight:700}
+  #draft-tabs{display:flex;gap:5px}
+  .tab-btn{padding:4px 11px;border-radius:20px;font-size:11px;font-family:inherit;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text2)}
+  .tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  #draft-text{width:100%;background:var(--bubble-in);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:14px;font-family:inherit;resize:none;line-height:1.5;outline:none;min-height:70px}
+  #draft-text:focus{border-color:var(--accent2)}
+  #draft-actions{display:flex;gap:8px;margin-top:8px}
+  #btn-approve{flex:1;background:var(--green);color:#fff;border:none;padding:13px;border-radius:12px;font-size:15px;font-family:inherit;font-weight:700;cursor:pointer}
+  #btn-approve:disabled{opacity:.5}
+  #btn-skip{background:var(--bubble-in);color:var(--text2);border:1px solid var(--border);padding:13px 16px;border-radius:12px;font-size:13px;font-family:inherit;cursor:pointer}
+
+  /* manual send section — always visible */
+  #manual-section{padding:10px 12px;display:flex;gap:8px;align-items:flex-end}
+  #manual-text{flex:1;background:var(--bubble-in);border:1px solid var(--border);border-radius:20px;padding:10px 14px;color:var(--text);font-size:14px;font-family:inherit;resize:none;line-height:1.5;outline:none;max-height:120px;overflow-y:auto}
+  #manual-text:focus{border-color:var(--accent2)}
+  #manual-text::placeholder{color:var(--text2)}
+  #btn-send{background:var(--accent);color:#fff;border:none;width:44px;height:44px;border-radius:50%;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  #btn-send:disabled{opacity:.5}
+
+  /* TOAST */
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#22c55e;color:#fff;padding:11px 22px;border-radius:24px;font-size:14px;font-weight:700;z-index:999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.4);transition:transform .3s ease,opacity .3s ease;opacity:0;pointer-events:none}
+  #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+</style>
+</head>
+<body>
+
+<!-- LIST VIEW -->
+<div id="view-list">
+  <div id="list-header">
+    <div>
+      <h1>🌸 MY FOTO Inbox</h1>
+      <p>หยก · Approve Mode</p>
+    </div>
+    <div id="header-right">
+      <button id="notif-btn" onclick="requestNotif()">🔔 แจ้งเตือน</button>
+      <div id="status-dot"></div>
+    </div>
+  </div>
+  <div id="conv-list"><div id="no-convs">กำลังเชื่อมต่อ... ⏳</div></div>
+</div>
+
+<!-- CHAT VIEW -->
+<div id="view-chat">
+  <div id="chat-header">
+    <button id="btn-back" onclick="goBack()">‹</button>
+    <div class="avatar" id="hdr-avatar">👤</div>
+    <div class="info">
+      <div class="name" id="hdr-name">ลูกค้า</div>
+      <div class="uid" id="hdr-uid"></div>
+    </div>
+  </div>
+  <div id="chat-body"></div>
+  <div id="bottom-area">
+    <!-- AI draft (hidden when no draft) -->
+    <div id="draft-section" style="display:none"></div>
+    <!-- Manual input — always visible -->
+    <div id="manual-section">
+      <textarea id="manual-text" placeholder="พิมข้อความได้เลยค่า..." rows="1"
+        oninput="autoGrow(this)" onkeydown="handleKey(event)"></textarea>
+      <button id="btn-send" onclick="doSendManual()">➤</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = '/api/inbox';
+let convs=[], activeUserId=null, activeConv=null, es=null, swReg=null;
+
+// ── Service Worker ──
+async function initSW(){
+  if(!('serviceWorker' in navigator)) return;
+  try{
+    swReg = await navigator.serviceWorker.register('/sw.js');
+    if(Notification.permission==='granted'){
+      document.getElementById('notif-btn').className='granted';
+      document.getElementById('notif-btn').textContent='🔔 เปิดอยู่';
+    }
+  }catch(e){}
+}
+
+async function requestNotif(){
+  if(!('Notification' in window)){ toast('เบราว์เซอร์ไม่รองรับ','#ef4444'); return; }
+  const p = await Notification.requestPermission();
+  if(p==='granted'){
+    document.getElementById('notif-btn').className='granted';
+    document.getElementById('notif-btn').textContent='🔔 เปิดอยู่';
+    toast('✅ เปิดแจ้งเตือนแล้วค่า!');
+  } else toast('❌ กรุณาอนุญาตใน settings','#ef4444');
+}
+
+function sendLocalNotif(title, body){
+  if(Notification.permission!=='granted') return;
+  if(document.visibilityState==='visible') return;
+  if(swReg) swReg.showNotification(title,{body,tag:'myfoto-msg',renotify:true,vibrate:[200,100,200]});
+  else new Notification(title,{body});
+}
+
+// ── helpers ──
+function timeStr(ts){ return new Date(ts).toLocaleTimeString('th',{hour:'2-digit',minute:'2-digit'}); }
+function clean(t){ return (t||'').replace(/^\*{1,3}\s*/gm,'').replace(/\*{1,3}$/gm,'').replace(/^(SHORT|MEDIUM|LONG)[：:]\s*/i,'').trim(); }
+function parseDraft(raw,len){
+  const s=raw.match(/SHORT[：:]([\s\S]*?)(?=MEDIUM[：:]|LONG[：:]|$)/i);
+  const m=raw.match(/MEDIUM[：:]([\s\S]*?)(?=SHORT[：:]|LONG[：:]|$)/i);
+  const l=raw.match(/LONG[：:]([\s\S]*?)(?=SHORT[：:]|MEDIUM[：:]|$)/i);
+  if(len==='short'&&s) return clean(s[1]);
+  if(len==='mid'&&m) return clean(m[1]);
+  if(len==='long'&&l) return clean(l[1]);
+  // fallback: strip all prefixes and return full text
+  return clean(raw.replace(/(?:SHORT|MEDIUM|LONG)[：:][ \t]*/gi,''));
+}
+let _tt;
+function toast(msg,color='#22c55e'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.style.background=color; el.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+function autoGrow(el){
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight,120)+'px';
+}
+
+function handleKey(e){
+  // Enter without shift = send on desktop
+  if(e.key==='Enter' && !e.shiftKey && window.innerWidth>600){
+    e.preventDefault(); doSendManual();
+  }
+}
+
+// ── SSE ──
+function connectSSE(){
+  if(es) es.close();
+  es=new EventSource(`${API}?action=stream`);
+  const dot=document.getElementById('status-dot');
+  es.onopen=()=>{ dot.className='live'; };
+  es.onmessage=e=>{
+    try{
+      const msg=JSON.parse(e.data);
+      if(msg.type==='inbox'){
+        const prev=new Set(convs.map(c=>c.userId));
+        const prevPending=new Map(convs.map(c=>[c.userId,c.status]));
+        convs=msg.data;
+        renderList(prev,prevPending);
+      }
+      if(msg.type==='conv'&&msg.data.userId===activeUserId){
+        const was=activeConv?.messages?.length||0;
+        activeConv=msg.data;
+        renderChat();
+        if(msg.data.messages.length>was) toast('💬 ข้อความใหม่!','#ff6b9d');
+      }
+    }catch(err){}
+  };
+  es.onerror=()=>{ dot.className=''; setTimeout(connectSSE,3000); };
+}
+
+// ── LIST ──
+function renderList(prev,prevPending){
+  const el=document.getElementById('conv-list');
+  if(!convs.length){ el.innerHTML='<div id="no-convs">ยังไม่มีข้อความค่า 🌸<br><small>รอลูกค้าทักใน LINE OA</small></div>'; return; }
+  el.innerHTML=convs.map(c=>{
+    const preview=c.pendingDraft?parseDraft(c.pendingDraft,'mid').substring(0,45):(c.messages.slice(-1)[0]?.text||'').substring(0,45);
+    const t=c.lastMessageAt?timeStr(c.lastMessageAt):'';
+    const av=c.pictureUrl?`<img src="${c.pictureUrl}" alt="">`:'👤';
+    return `<div class="conv-item" id="ci-${c.userId}" onclick="openConv('${c.userId}')">
+      <div class="conv-avatar">${av}</div>
+      <div class="conv-info">
+        <div class="conv-name">${c.displayName||'ลูกค้า'}</div>
+        <div class="conv-preview">${preview}</div>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-time">${t}</div>
+        ${c.status==='PENDING'?'<div class="conv-badge">รอ</div>':''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // notify + flash new pending
+  convs.forEach(c=>{
+    const wasNotPending=!prevPending||prevPending.get(c.userId)!=='PENDING';
+    if(c.status==='PENDING'&&wasNotPending){
+      const lastMsg=c.messages.slice(-1)[0]?.text||'';
+      sendLocalNotif(`💬 ${c.displayName||'ลูกค้า'}`,lastMsg);
+      const el=document.getElementById(`ci-${c.userId}`);
+      if(el){ el.classList.add('flash-new'); setTimeout(()=>el.classList.remove('flash-new'),1000); }
+    }
+  });
+}
+
+// ── CHAT ──
+async function openConv(userId){
+  activeUserId=userId;
+  document.body.classList.add('in-chat');
+  const r=await fetch(`${API}?action=getConv&userId=${encodeURIComponent(userId)}`);
+  activeConv=await r.json();
+  renderChat();
+}
+
+function goBack(){
+  document.body.classList.remove('in-chat');
+  activeUserId=null; activeConv=null;
+}
+
+function renderChat(){
+  const c=activeConv; if(!c) return;
+  document.getElementById('hdr-name').textContent=c.displayName||'ลูกค้า';
+  document.getElementById('hdr-uid').textContent=c.userId;
+  document.getElementById('hdr-avatar').innerHTML=c.pictureUrl?`<img src="${c.pictureUrl}" alt="">`:'👤';
+
+  // messages
+  const body=document.getElementById('chat-body');
+  body.innerHTML=c.messages.map(m=>`
+    <div class="msg-row ${m.role}">
+      <div>
+        <div class="msg-bubble">${m.text}</div>
+        <div class="msg-time">${timeStr(m.timestamp)}</div>
+      </div>
+    </div>`).join('');
+  body.scrollTop=999999;
+
+  // draft section
+  const ds=document.getElementById('draft-section');
+  const draft=clean(c.pendingDraft||'');
+  if(draft){
+    ds.style.display='block';
+    ds.innerHTML=`
+      <div id="draft-top">
+        <div id="draft-label">🤖 AI หยก ร่างไว้</div>
+        <div id="draft-tabs">
+          <button class="tab-btn" onclick="setLen('short',event)">สั้น</button>
+          <button class="tab-btn active" onclick="setLen('mid',event)">กลาง</button>
+          <button class="tab-btn" onclick="setLen('long',event)">ยาว</button>
+        </div>
+      </div>
+      <textarea id="draft-text">${parseDraft(c.pendingDraft||'','mid')}</textarea>
+      <div id="draft-actions">
+        <button id="btn-approve" onclick="doApprove()">✅ Approve & ส่ง</button>
+        <button id="btn-skip" onclick="doSkip()">ข้าม</button>
+      </div>`;
+  } else {
+    ds.style.display='none';
+    ds.innerHTML='';
+  }
+  window._rawDraft=c.pendingDraft||'';
+}
+
+function setLen(len,ev){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  ev.target.classList.add('active');
+  const raw=window._rawDraft||'';
+  const el=document.getElementById('draft-text');
+  if(el) el.value=parseDraft(raw,len);
+}
+
+async function doApprove(){
+  const text=document.getElementById('draft-text')?.value?.trim();
+  if(!text||!activeUserId) return;
+  document.getElementById('btn-approve').disabled=true;
+  const r=await fetch(`${API}?action=approve`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({userId:activeUserId,text})
+  });
+  if(r.ok) toast('✅ ส่งแล้วค่า!');
+  else{ toast('❌ ส่งไม่ได้','#ef4444'); document.getElementById('btn-approve').disabled=false; }
+}
+
+function doSkip(){
+  document.getElementById('draft-section').style.display='none';
+}
+
+async function doSendManual(){
+  const el=document.getElementById('manual-text');
+  const text=el?.value?.trim();
+  if(!text||!activeUserId) return;
+  document.getElementById('btn-send').disabled=true;
+  const r=await fetch(`${API}?action=approve`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({userId:activeUserId,text})
+  });
+  if(r.ok){
+    el.value=''; el.style.height='auto';
+    toast('✅ ส่งแล้วค่า!');
+  } else toast('❌ ส่งไม่ได้','#ef4444');
+  document.getElementById('btn-send').disabled=false;
+}
+
+initSW();
+connectSSE();
+</script>
+</body>
+</html>
