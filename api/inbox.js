@@ -30,11 +30,16 @@ async function getKnowledgeBase(redis) {
   return null;
 }
 
-async function generateAIDraft(userMessage, knowledgeBase) {
+async function generateAIDraft(userMessage, knowledgeBase, history) {
   const systemPrompt = knowledgeBase || `คุณคือหยก เจ้าของ MY FOTO บริการช่างภาพเซี่ยงไฮ้สำหรับนักท่องเที่ยวไทย
 สไตล์: พิมสั้น กันเอง ใช้ ค่า/ค้าบ/ค่ะ สลับกัน ใช้ 55555 แทนหัวเราะ emoji เบาๆ`;
 
-  const userMsg = `ตอบข้อความลูกค้านี้ 3 แบบ ในสไตล์หยก:\n\nลูกค้าพูดว่า: ${userMessage}\n\nตอบในรูปแบบนี้เท่านั้น ห้ามใส่วงเล็บ [ ]:\nSHORT: ข้อความสั้น 1-2 ประโยค กันเอง\nMEDIUM: ข้อความกลาง 3-4 ประโยค มีข้อมูลพอดี\nLONG: ข้อความยาว 5-8 ประโยค ครบรายละเอียด ส่งลิ้งช่างถ้าเกี่ยวข้อง`;
+  // Build history context from last 10 messages
+  let historyCtx = '';
+  if (history && history.length > 0) {
+    historyCtx = '\n\nประวัติสนทนากับลูกค้าคนนี้:\n' + history.slice(-10).map(m => (m.role === 'customer' ? 'ลูกค้า' : 'หยก') + ': ' + m.text).join('\n');
+  }
+  const userMsg = `ตอบข้อความลูกค้านี้ 3 แบบ ในสไตล์หยก:${historyCtx}\n\nลูกค้าพูดว่า: ${userMessage}\n\nตอบในรูปแบบนี้เท่านั้น ห้ามใส่วงเล็บ [ ]:\nSHORT: ข้อความสั้น 1-2 ประโยค กันเอง\nMEDIUM: ข้อความกลาง 3-4 ประโยค มีข้อมูลพอดี\nLONG: ข้อความยาว 5-8 ประโยค ครบรายละเอียด ส่งลิ้งช่างถ้าเกี่ยวข้อง`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -44,8 +49,8 @@ async function generateAIDraft(userMessage, knowledgeBase) {
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 800,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMsg }]
     })
@@ -164,9 +169,7 @@ module.exports = async (req, res) => {
     const name = profile?.displayName || displayName || 'ลูกค้า';
     const picture = profile?.pictureUrl || null;
 
-    const key = `conv:${userId}`;
-    const raw = await redis.get(key);
-    const existing = raw ? JSON.parse(raw) : {
+    const existing = prevConv || { {
       userId, displayName: name, pictureUrl: picture,
       messages: [], pendingDraft: null,
       lastMessageAt: new Date().toISOString(), status: 'PENDING'
