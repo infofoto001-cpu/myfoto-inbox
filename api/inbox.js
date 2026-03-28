@@ -1,6 +1,6 @@
 const { createClient } = require('redis');
 
-const LINE_TOKEN = 'gp1dCEjAcjC2ChP+wpJ6SLG6Zq14pMcPg8oIxxqCcmhLyW2qcqSE1cGzLrJNSIcPxlja6zAHyIahW2FnVSU4MH255qKe0BnjEOHUZ/cjojnns2t3 EL6IKNZE9_TTEOJKzEINq 5=U k'Eg8pn1mdiCYELj0AZcSjuCz2oCthUPv+cwkp8JR6FSKLlGE6tZpq01H4ApdMBc0P4gt88o9I/x1xOq/Cwc1mchDLnyyWi2lqFcUq=S'E;1cGzLrJNSIcPxlja6zAHyIahW2FnVSU4MH255qKe0BnjEOHUZ/jjn23E6KZ9TEJzIq5UkE8nmiYL0ZSuzotUvck8RFKlEtp0HAdB04t89/1O/w1cDnyilFU=';
+const LINE_TOKEN = process.env.LINE_TOKEN;
 const CLAUDE_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GDOC_URL = 'https://docs.google.com/document/d/e/2PACX-1vQMycXWaI5JVclpwSbqoKfi5_aTcqER9_HD29vXY2sf4AQahlpntbNkOn2-BEy16eKkwUH4g73hg2af/pub?output=txt';
 
