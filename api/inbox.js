@@ -75,6 +75,10 @@ async function sendLineMessage(userId, text) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${LINE_TOKEN}` },
     body: JSON.stringify({ to: userId, messages: [{ type: 'text', text }] })
   });
+  if (!res.ok) {
+    const errBody = await res.text();
+    console.error('LINE push error:', res.status, errBody);
+  }
   return res.ok;
 }
 
